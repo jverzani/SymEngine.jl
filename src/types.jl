@@ -52,30 +52,47 @@ convert(::Type{Basic}, x::Rational) = Basic(BasicInteger(num(x)) / BasicInteger(
 ## XXX This needs to be generated from symengine on startup
 ## XXX This might be tedious with precompilation!
 abstract BasicType <: Number
-const SYMENGINE_ENUM = Dict{Int, Symbol}(0 => :Integer,
-                                         1 => :Rational,
-                                         2 => :Complex,
-                                         3 => :ComplexDouble,
-                                         11 => :Symbol,
-                                         12 => :EmptySet,
-                                         13 => :Interval,
-                                         14 => :Mul,
-                                         15 => :Add,
-                                         16 => :Pow,
-                                         19 => :Constant)
+abstract BasicNumber <: BasicType
+abstract BasicFunction <: BasicType
+abstract BasicTrigFunction <: BasicFunction
+abstract BasicHyperbolicFunction <: BasicFunction
+abstract BasicFunctionSymbolAbstract <: BasicFunction
 
-_basic_types = Dict()
-for (k,v) in SYMENGINE_ENUM
-    tname = symbol("Basic$v")
-    fname = symbol("basic_free_$v")
+const basic_types = Dict{Symbol, Symbol}(:Integer        => :BasicNumber,
+                                         :Rational       => :BasicNumber,
+                                         :Complex        => :BasicNumber,
+                                         :Symbol         => :BasicType,
+                                         :Mul            => :BasicType,
+                                         :Add            => :BasicType,
+                                         :Pow            => :BasicType,
+                                         :Constant       => :BasicType,
+                                         :Sin            => :BasicTrigFunction,
+                                         :Cos            => :BasicTrigFunction,
+                                         :Tan            => :BasicTrigFunction,
+                                         :Csc            => :BasicTrigFunction,
+                                         :Sec            => :BasicTrigFunction,
+                                         :Cot            => :BasicTrigFunction,
+                                         :ASin           => :BasicTrigFunction,
+                                         :ACos           => :BasicTrigFunction,
+                                         :ATan           => :BasicTrigFunction,
+                                         :ACsc           => :BasicTrigFunction,
+                                         :ASec           => :BasicTrigFunction,
+                                         :ACot           => :BasicTrigFunction
+                                        )
+
+_basic_enums = Dict()
+for (k,v) in basic_types
+    tname = symbol("Basic$k")
+    pname = symbol("$v")
     @eval begin
-        type $tname <: BasicType
+        type $tname <: $pname
             x::Basic
         end
-        _basic_types[$k] = $tname
     end
+    t = ccall((:basic_get_class_id, :libsymengine), UInt, (Ptr{Int8},), "$k")
+    _basic_enums[t] = @eval begin $tname end
 end
-##
+
 type BasicValue <: BasicType
     x::Basic
 end
@@ -83,13 +100,13 @@ end
 Basic(x::BasicType) = x.x
 
 function get_type(s::Basic)
-    ccall((:basic_get_type, :libsymengine), Int, (Ptr{Basic},), &s)
+    ccall((:basic_get_type, :libsymengine), UInt, (Ptr{Basic},), &s)
 end
 
 function Base.convert(::Type{BasicType}, val::Basic)
     id = get_type(val)
-    if haskey(SYMENGINE_ENUM, id)
-        _basic_types[id](val)
+    if haskey(_basic_enums, id)
+        _basic_enums[id](val)
     else
         BasicValue(val)
     end
