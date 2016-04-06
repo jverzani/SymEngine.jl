@@ -55,7 +55,8 @@ function walk_expression(ex)
         x = eval(parse(replace(toString(ex), "I", "im")))
         return Expr(:call, :complex, real(x), imag(x))
     elseif fn == :Constant
-        return constant_map(toString(ex))
+        return constant_map[toString(ex)]
+                            
     end
 
     as = get_args(ex)
