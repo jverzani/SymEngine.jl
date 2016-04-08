@@ -73,6 +73,7 @@ function lambdify(ex::Basic)
         _lambdify(ex, vars)
     end
 end
+lambdify(ex::BasicType) = lambdify(Basic(ex))
 
 ## return a number
 function _lambdify(ex)
